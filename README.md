@@ -46,7 +46,7 @@ Complaints that a model "got worse" conflate three different things. nerfwatch s
 | Layer | Question | Signal | Method |
 |---|---|---|---|
 | **Identity** | Did the thing behind the endpoint change? | 1-token completions with `logprobs`, fixed prompt set | Log-probability tracking ([arXiv 2512.03816](https://arxiv.org/abs/2512.03816)): mean top-5 logprob + top-token agreement. Detects new weights, quantization, inference-stack swaps. API backends only. |
-| **Capability** | Did it get dumber? | 7 probe families × 5 difficulty levels, regenerated weekly from your private salt | Rasch (1-PL IRT) ability **θ** so runs stay comparable when items rotate; raw accuracy; per-family accuracy. |
+| **Capability** | Did it get dumber? | 7 probe families on a 9-level difficulty ladder; each run draws a 5-level window centred on the target's last ability estimate (adaptive testing), regenerated weekly from your private salt | Rasch (1-PL IRT) ability **θ** so runs stay comparable when items and levels change; raw accuracy; per-family accuracy. |
 | **Delivery** | Did it get slower, lazier, stingier? | latency, `reasoning_tokens` (Codex, OpenAI, Claude thinking), output tokens, refusal rate on benign prompts, "lazy" rate on long enumeration tasks | Medians per run. **Reasoning tokens are the "juice" meter**: when a provider quietly lowers reasoning effort, the weights don't change but this number does. |
 
 Every metric series gets a two-sided **CUSUM** (Page 1954): baseline = first 5 runs, k = 0.5σ, h = 4σ, alarm only when the statistic stays over threshold for 2 consecutive runs. Heavy-tailed series (latency, tokens) are tracked on log scale.
@@ -62,15 +62,17 @@ The verdict combines alarms:
 
 ### Probe families
 
-| Family | What | Difficulty knob |
-|---|---|---|
-| `arith` | multi-step integer arithmetic | digits × operations |
-| `logic` | transitive-relation puzzles ("who is tallest?") with distractors | chain length |
-| `listops` | apply k list transformations in order | k |
-| `code` | write a Python function; hidden tests run in a subprocess | composition depth |
-| `instruct` | satisfy N simultaneous formatting constraints | N |
-| `effort` | enumerate 27–75 required lines; skipping or "..." = fail | line count |
-| `refusal` | benign questions with scary words ("how do I kill a Python process") | – |
+| Family | What | Difficulty knob | Max level |
+|---|---|---|---|
+| `arith` | multi-step integer arithmetic | digits × operations × multiplier size | 9 |
+| `logic` | transitive-relation puzzles with distractors, negations, middle ranks | chain length | 9 |
+| `listops` | apply k list transformations in order | k | 9 |
+| `code` | write a Python function; hidden tests run in a subprocess | composition depth | 5 |
+| `instruct` | satisfy N simultaneous formatting constraints | N | 6 |
+| `effort` | enumerate 27–123 required lines; skipping or "..." = fail | line count | 9 |
+| `refusal` | benign questions with scary words ("how do I kill a Python process") | – | – |
+
+Level `L` has Rasch difficulty `b = L - 3`. A fresh target starts at levels 3–7; after each run the window re-centres on `round(θ + 3)`, so a frontier model climbs to 5–9 and a small local model settles at 1–5. Accuracy therefore hovers where the test is most informative (roughly 50–80%) and **θ, not accuracy, is the number to watch**.
 
 Items are generated from `sha256(salt · period · family · index)`. The salt is created at `init` and never shared, so your suite can't be trained on. Rotation is weekly by default (`"rotation": "frozen" | "weekly" | "daily"` in config).
 
@@ -116,6 +118,7 @@ nerfwatch add --name or-kimi --backend openai-compatible --base-url https://open
 
 - **Rasch difficulties are design-calibrated**, one logit per level, not fitted across 100+ models. θ is comparable across *your* runs of *one* target; don't compare θ across targets like a leaderboard.
 - **Identity only works where logprobs are exposed.** The CLIs don't expose them. For subscriptions you get capability + delivery, which is still enough to tell "reasoning budget cut" from "generally worse".
+- **The ladder tops out at level 9.** Frontier models with thinking on may still score >90% there; for them the delivery metrics (reasoning tokens, latency, laziness) carry most of the signal until harder families land. PRs welcome.
 - **5 runs of baseline are required** before any verdict. If the model was already nerfed when you started, your baseline is the nerfed state.
 - **Sampling noise is real.** 35 items → accuracy has ±8% sampling error per run. That is exactly why the alarms are CUSUM over runs and not a threshold on one run.
 - `claude -p` counts toward your plan's limits.

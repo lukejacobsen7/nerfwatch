@@ -216,7 +216,7 @@ def cmd_show(a: argparse.Namespace) -> None:
                 print(f"--- {r['family']} L{r['level']} score={r['score']} lat={r['latency_ms']} rt={r['reasoning_tokens']} refused={r['refused']} lazy={r['lazy']} err={r['error']}")
                 print((r["response"] or "")[:600])
         return
-    items, h = build(cfg["salt"], int(cfg.get("items_per_family", 5)), quick=a.quick, rotation=cfg.get("rotation", "weekly"))
+    items, h = build(cfg["salt"], int(cfg.get("items_per_family", 5)), quick=a.quick, rotation=cfg.get("rotation", "weekly"), center=a.center)
     print(f"suite {h}: {len(items)} items")
     for it in items:
         print(f"--- {it.family} L{it.level} b={it.difficulty:+.0f} {it.hash}\n{it.prompt}\n")
@@ -295,6 +295,7 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("show", help="print this period's prompts, or the responses of a run")
     s.add_argument("--run", type=int, help="run id to show responses for")
     s.add_argument("--quick", action="store_true")
+    s.add_argument("--center", type=int, default=5, help="centre level of the 5-level window (1-9)")
     s.set_defaults(fn=cmd_show)
 
     a = p.parse_args(argv)

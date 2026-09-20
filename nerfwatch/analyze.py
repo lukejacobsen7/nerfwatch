@@ -176,7 +176,7 @@ def verdict(ta: TargetAnalysis) -> str:
         return "no runs yet"
     if n <= ta.baseline_n:
         return f"building baseline ({n}/{ta.baseline_n} runs); no verdict until the baseline is full"
-    worse = _alarm(ta, "theta", "down") or _alarm(ta, "accuracy", "down")
+    worse = _alarm(ta, "theta", "down")  # accuracy shifts with the adaptive window; θ is the comparable scale
     identity = _alarm(ta, "ident_logprob") or _alarm(ta, "ident_agree", "down")
     juice_cut = _alarm(ta, "reasoning_tokens", "down")
     lazy = _alarm(ta, "lazy_rate", "up")

@@ -10,6 +10,8 @@ from typing import Any
 
 from . import backends, db
 from .probes import Item, build, effort_is_lazy
+from .probes.suite import center_from_theta
+from .stats import rasch_theta
 from .probes import identity as ident
 from .probes.base import looks_refused
 
@@ -39,12 +41,23 @@ def _one(be: backends.Backend, item: Item) -> dict[str, Any]:
     }
 
 
+def _last_theta(target_name: str) -> float | None:
+    with db.connect() as con:
+        runs = [r for r in db.runs_for(con, target_name) if not r["quick"]]
+        if not runs:
+            return None
+        rows = db.results_for_run(con, runs[-1]["id"])
+    pairs = [(float(r["difficulty"]), r["score"] >= 0.999) for r in rows if r["score"] is not None and r["family"] != "refusal"]
+    return rasch_theta(pairs)[0] if pairs else None
+
+
 def run_target(cfg: dict[str, Any], target: dict[str, Any], quick: bool = False, parallel: int = 3, verbose: bool = True) -> int:
     be = backends.make(target, timeout_s=int(cfg.get("request_timeout_s", 180)))
-    items, suite_hash = build(cfg["salt"], int(cfg.get("items_per_family", 5)), quick=quick, rotation=cfg.get("rotation", "weekly"))
+    center = int(target["center"]) if target.get("center") else center_from_theta(_last_theta(target["name"]))
+    items, suite_hash = build(cfg["salt"], int(cfg.get("items_per_family", 5)), quick=quick, rotation=cfg.get("rotation", "weekly"), center=center)
     t0 = time.time()
     if verbose:
-        print(f"[{target['name']}] {len(items)} items, suite {suite_hash}, {be.name}" + (f" model={target.get('model')}" if target.get("model") else ""), flush=True)
+        print(f"[{target['name']}] {len(items)} items, levels {min(i.level for i in items)}-{max(i.level for i in items)}, suite {suite_hash}, {be.name}" + (f" model={target.get('model')}" if target.get("model") else ""), flush=True)
     with ThreadPoolExecutor(max_workers=max(1, parallel)) as ex:
         results = list(ex.map(lambda it: _one(be, it), items))
     model_reported = next((r["_model"] for r in results if r.get("_model")), None)
@@ -66,6 +79,7 @@ def run_target(cfg: dict[str, Any], target: dict[str, Any], quick: bool = False,
         "hour_local": dt.datetime.now().hour,
         "weekday": dt.datetime.now().weekday(),
         "n_errors": n_err,
+        "center": center,
         "n_identity": len(identity_rows),
         "accuracy": (sum(scored) / len(scored)) if scored else None,
         "first_error": next((r["error"] for r in results if r["error"]), None),

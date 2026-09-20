@@ -5,8 +5,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-# Rasch difficulty (b) per level. Level 3 is "average"; each step is one logit.
-LEVEL_B = {1: -2.0, 2: -1.0, 3: 0.0, 4: 1.0, 5: 2.0}
+# Rasch difficulty (b) per level, one logit per step. Level 3 is "average" (b=0);
+# frontier models live around levels 5-9. The suite picks a 5-level window
+# around the target's last ability estimate (adaptive testing).
+MAX_LEVEL = 9
+LEVEL_B = {lvl: float(lvl - 3) for lvl in range(1, MAX_LEVEL + 1)}
 
 SUFFIX = "\n\nDo not use tools. Reply with only the final answer and nothing else."
 

@@ -15,7 +15,8 @@ import random
 
 from . import families  # noqa: F401 - registers FAMILIES
 from .base import Item
-from .families import FAMILIES
+from .base import MAX_LEVEL
+from .families import FAMILIES, FAMILY_MAX_LEVEL
 
 ORDER = ["arith", "logic", "listops", "code", "instruct", "effort", "refusal"]
 
@@ -30,12 +31,30 @@ def period_key(rotation: str, when: dt.date | None = None) -> str:
     return f"{y}-W{w:02d}"
 
 
-def build(salt: str, items_per_family: int = 5, quick: bool = False, rotation: str = "weekly", when: dt.date | None = None) -> tuple[list[Item], str]:
+def window(center: int, n: int) -> list[int]:
+    """n levels centred on `center`, clamped to [1, MAX_LEVEL]."""
+    lo = max(1, min(center - n // 2, MAX_LEVEL - n + 1))
+    return [lo + i for i in range(n)]
+
+
+def center_from_theta(theta: float | None) -> int:
+    """Put the window where the model gets ~50-70% right: that's where a test is most informative."""
+    if theta is None:
+        return 5  # frontier-ish default; a weak model gets re-centred after one run
+    return max(3, min(MAX_LEVEL - 2, round(theta + 3)))
+
+
+def build(salt: str, items_per_family: int = 5, quick: bool = False, rotation: str = "weekly", when: dt.date | None = None, center: int = 5) -> tuple[list[Item], str]:
     period = period_key(rotation, when)
     items: list[Item] = []
     for fam in ORDER:
         gen = FAMILIES[fam]
-        levels = [3] if quick else [((i % 5) + 1) for i in range(items_per_family)]
+        fam_max = FAMILY_MAX_LEVEL.get(fam, MAX_LEVEL)
+        if quick:
+            levels = [min(center, fam_max)]
+        else:
+            base = window(center, 5)
+            levels = [min(base[i % 5], fam_max) for i in range(items_per_family)]
         for idx, level in enumerate(levels):
             seed = int(hashlib.sha256(f"{salt}|{period}|{fam}|{idx}".encode()).hexdigest(), 16) % (2**63)
             rng = random.Random(seed)

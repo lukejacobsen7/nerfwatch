@@ -24,6 +24,8 @@ from .base import LAZY_RE, SUFFIX, Item, last_int, looks_refused, strip_fences
 
 Gen = Callable[[random.Random, int], Item]
 FAMILIES: dict[str, Gen] = {}
+# highest level each generator can meaningfully produce; the suite clamps to this
+FAMILY_MAX_LEVEL = {"arith": 9, "logic": 9, "listops": 9, "code": 5, "instruct": 6, "effort": 9, "refusal": 3}
 
 
 def family(name: str):
@@ -44,13 +46,14 @@ WORDS = ("apple river stone cloud tiger honey maple candle silver garden pencil 
 @family("arith")
 def gen_arith(rng: random.Random, level: int) -> Item:
     n_ops = level + 1
-    digits = {1: 2, 2: 3, 3: 4, 4: 5, 5: 6}[level]
+    digits = min(level + 1, 8)
     val = rng.randint(10 ** (digits - 1), 10**digits - 1)
     expr = str(val)
+    n_mul = 1 if level < 4 else 2 if level < 7 else 3
     for i in range(n_ops):
-        op = rng.choice(["+", "-", "*"] if i < 2 else ["+", "-"])
+        op = rng.choice(["+", "-", "*"]) if i < n_mul else rng.choice(["+", "-"])
         if op == "*":
-            k = rng.randint(2, 9 if level < 4 else 99)
+            k = rng.randint(2, 9 if level < 4 else 99 if level < 6 else 999 if level < 8 else 9999)
         else:
             k = rng.randint(10 ** (digits - 1), 10**digits - 1)
         expr = f"({expr} {op} {k})"
@@ -73,15 +76,28 @@ def gen_logic(rng: random.Random, level: int) -> Item:
     facts = []
     for i in range(n - 1):
         a, b = order[i], order[i + 1]
-        facts.append(f"{a} is taller than {b}." if rng.random() < 0.5 else f"{b} is shorter than {a}.")
+        forms = [f"{a} is taller than {b}.", f"{b} is shorter than {a}."]
+        if level >= 6:  # negated forms; all heights are distinct so "not shorter" == "taller"
+            forms += [f"{b} is not taller than {a}.", f"{a} is not shorter than {b}."]
+        facts.append(rng.choice(forms))
     # extra distractor facts consistent with the order at higher levels
     for _ in range(max(0, level - 2)):
         i, j = sorted(rng.sample(range(n), 2))
         facts.append(f"{order[i]} is taller than {order[j]}.")
     rng.shuffle(facts)
-    ask_tallest = rng.random() < 0.5
-    answer = order[0] if ask_tallest else order[-1]
-    prompt = " ".join(facts) + f"\nWho is the {'tallest' if ask_tallest else 'shortest'}? Answer with the name only." + SUFFIX
+    if level >= 8:  # ask for a middle rank instead of an endpoint
+        rank = rng.randint(2, n - 1)
+        answer = order[rank - 1]
+        q = f"Who is the {rank}{'nd' if rank == 2 else 'rd' if rank == 3 else 'th'} tallest?"
+    else:
+        ask_tallest = rng.random() < 0.5
+        answer = order[0] if ask_tallest else order[-1]
+        q = f"Who is the {'tallest' if ask_tallest else 'shortest'}?"
+    if level >= 6:
+        prompt_note = " All heights are distinct."
+    else:
+        prompt_note = ""
+    prompt = " ".join(facts) + prompt_note + f"\n{q} Answer with the name only." + SUFFIX
 
     def grade(item: Item, resp: str) -> float:
         t = strip_fences(resp)
@@ -273,7 +289,7 @@ def gen_instruct(rng: random.Random, level: int) -> Item:
         ("caps", "no capital letters anywhere", lambda t: t == t.lower()),
         ("wc", "between 30 and 60 words in total", lambda t: 30 <= len(re.findall(r"\b\w+\b", t)) <= 60),
     ]
-    picked = [pool[0]] + rng.sample(pool[1:], level)
+    picked = [pool[0]] + rng.sample(pool[1:], min(level, len(pool) - 1))
     rules = "\n".join(f"- {p[1]}" for p in picked)
     prompt = f"Write about {topic} following ALL of these rules:\n{rules}\nOutput only the text." + "\n\nDo not use tools."
 
