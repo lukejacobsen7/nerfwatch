@@ -21,9 +21,14 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/lukejacobsen7/nerfwatch"
+Issues = "https://github.com/lukejacobsen7/nerfwatch/issues"
+Changelog = "https://github.com/lukejacobsen7/nerfwatch/blob/main/CHANGELOG.md"
 
 [project.scripts]
 nerfwatch = "nerfwatch.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["nerfwatch*"]
+
+[tool.setuptools.package-data]
+nerfwatch = ["py.typed"]

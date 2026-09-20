@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="180" viewBox="0 0 760 180" role="img" aria-label="nerfwatch">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1113"/>
+      <stop offset="1" stop-color="#1b2126"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(10,10)">
+    <rect width="160" height="160" rx="36" fill="url(#g)"/>
+    <rect x="25" y="60" width="110" height="12" rx="6" fill="#2BD9FF" opacity="0.12"/>
+    <polyline points="28,66 48,65 68,67 88,65 105,67 118,88 135,122" fill="none" stroke="#2BD9FF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="28" cy="66" r="6" fill="#2BD9FF"/><circle cx="48" cy="65" r="6" fill="#2BD9FF"/><circle cx="68" cy="67" r="6" fill="#2BD9FF"/><circle cx="88" cy="65" r="6" fill="#2BD9FF"/><circle cx="105" cy="67" r="6" fill="#2BD9FF"/>
+    <polygon points="118,76 129,95 107,95" fill="#FFB74D"/>
+    <circle cx="135" cy="122" r="7" fill="#FF6B6B"/>
+  </g>
+  <text x="200" y="92" font-family="-apple-system, 'SF Pro Display', 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#141414" letter-spacing="-2">nerf<tspan fill="#0FA3C4">watch</tspan></text>
+  <text x="203" y="136" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif" font-size="24" fill="#6B6B6B">is your model getting dumber? measure it.</text>
+</svg>

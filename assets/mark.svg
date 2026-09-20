@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="nerfwatch mark">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1113"/>
+      <stop offset="1" stop-color="#1b2126"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#g)"/>
+  <!-- baseline band -->
+  <rect x="40" y="96" width="176" height="20" rx="10" fill="#2BD9FF" opacity="0.12"/>
+  <!-- the series: flat, flat, flat... then the cliff -->
+  <polyline points="44,106 76,104 108,108 140,105 168,107 188,140 216,196"
+            fill="none" stroke="#2BD9FF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="44" cy="106" r="9" fill="#2BD9FF"/>
+  <circle cx="76" cy="104" r="9" fill="#2BD9FF"/>
+  <circle cx="108" cy="108" r="9" fill="#2BD9FF"/>
+  <circle cx="140" cy="105" r="9" fill="#2BD9FF"/>
+  <circle cx="168" cy="107" r="9" fill="#2BD9FF"/>
+  <!-- CUSUM alarm marker at the change point -->
+  <polygon points="188,122 206,152 170,152" fill="#FFB74D"/>
+  <circle cx="216" cy="196" r="10" fill="#FF6B6B"/>
+</svg>

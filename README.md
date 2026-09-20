@@ -1,4 +1,16 @@
-# nerfwatch
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img alt="nerfwatch" src="assets/logo-light.svg" width="520">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://github.com/lukejacobsen7/nerfwatch/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/lukejacobsen7/nerfwatch/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-2BD9FF">
+  <img alt="dependencies" src="https://img.shields.io/badge/dependencies-0-2BD9FF">
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-2BD9FF"></a>
+</p>
 
 **Is your model getting dumber? Measure it instead of arguing about it.**
 
@@ -127,4 +139,6 @@ nerfwatch add --name or-kimi --backend openai-compatible --base-url https://open
 
 [Chen, Zaharia, Zou 2023](https://arxiv.org/abs/2307.09009) showed GPT-4 drift first. [daily-bench](https://github.com/jacobphillips99/daily-bench) and [model-drift](https://github.com/egnaro9/model-drift) are public dashboards for the models their authors pay for. nerfwatch is the installable version for the models *you* pay for, with an identity layer from [Log Probability Tracking](https://arxiv.org/abs/2512.03816) and difficulty-aware scoring.
 
-MIT.
+## License
+
+MIT © Luke Jacobsen

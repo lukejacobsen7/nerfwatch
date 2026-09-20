@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="nerfwatch social preview">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1113"/>
+      <stop offset="1" stop-color="#171c21"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <!-- faint grid -->
+  <g stroke="#23272b" stroke-width="1">
+    <line x1="80" y1="420" x2="1200" y2="420"/><line x1="80" y1="340" x2="1200" y2="340"/><line x1="80" y1="500" x2="1200" y2="500"/>
+  </g>
+  <!-- big series -->
+  <rect x="80" y="330" width="1120" height="20" rx="10" fill="#2BD9FF" opacity="0.10"/>
+  <polyline points="100,340 220,336 340,342 460,338 580,341 700,337 800,342 880,400 960,470 1040,540 1120,580"
+            fill="none" stroke="#2BD9FF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#2BD9FF">
+    <circle cx="100" cy="340" r="9"/><circle cx="220" cy="336" r="9"/><circle cx="340" cy="342" r="9"/><circle cx="460" cy="338" r="9"/><circle cx="580" cy="341" r="9"/><circle cx="700" cy="337" r="9"/><circle cx="800" cy="342" r="9"/>
+  </g>
+  <polygon points="880,372 902,410 858,410" fill="#FFB74D"/>
+  <text x="915" y="404" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif" font-size="22" fill="#FFB74D">CUSUM alarm</text>
+  <circle cx="1120" cy="580" r="11" fill="#FF6B6B"/>
+  <text x="80" y="140" font-family="-apple-system, 'SF Pro Display', 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif" font-size="104" font-weight="700" fill="#ECECEC" letter-spacing="-3">nerf<tspan fill="#2BD9FF">watch</tspan></text>
+  <text x="84" y="205" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif" font-size="36" fill="#9A9A9A">Is your model getting dumber? Measure it instead of arguing about it.</text>
+  <text x="84" y="262" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif" font-size="26" fill="#6b7075">Claude Code · Codex · Ollama · any OpenAI-compatible API  ·  local, zero dependencies, no LLM judge</text>
+</svg>
