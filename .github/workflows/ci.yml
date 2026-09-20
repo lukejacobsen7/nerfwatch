@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e . pytest
+      - run: python -m pytest tests/ -q
+      - name: smoke the CLI without any backend
+        env:
+          NERFWATCH_HOME: ${{ runner.temp }}/nw
+        run: |
+          nerfwatch --version
+          nerfwatch init
+          nerfwatch show --quick | head -20
+          nerfwatch report
+          nerfwatch dashboard --no-open --out "$NERFWATCH_HOME/d.html"
+          test -s "$NERFWATCH_HOME/d.html"
