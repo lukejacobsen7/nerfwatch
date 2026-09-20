@@ -177,6 +177,11 @@ def verdict(ta: TargetAnalysis) -> str:
     if n <= ta.baseline_n:
         return f"building baseline ({n}/{ta.baseline_n} runs); no verdict until the baseline is full"
     worse = _alarm(ta, "theta", "down")  # accuracy shifts with the adaptive window; θ is the comparable scale
+    # unconfirmed but visible: last θ more than 2 SE below the baseline mean
+    base_t = [m.theta for m in ta.runs[: ta.baseline_n] if m.theta is not None]
+    last = ta.runs[-1]
+    trending = (not worse and base_t and last.theta is not None and last.theta_se
+                and (sum(base_t) / len(base_t) - last.theta) > 2 * last.theta_se)
     identity = _alarm(ta, "ident_logprob") or _alarm(ta, "ident_agree", "down")
     juice_cut = _alarm(ta, "reasoning_tokens", "down")
     lazy = _alarm(ta, "lazy_rate", "up")
@@ -185,6 +190,8 @@ def verdict(ta: TargetAnalysis) -> str:
     parts: list[str] = []
     if identity and worse:
         parts.append("THE MODEL CHANGED AND GOT WORSE: identity probes shifted (new weights / quantization / inference stack) and ability dropped")
+    elif identity and trending:
+        parts.append("THE MODEL CHANGED: identity probes shifted (new weights / quantization / inference stack); ability trending down, not yet confirmed by CUSUM")
     elif identity:
         parts.append("the served model changed (identity probes shifted) but ability is holding")
     elif juice_cut and worse:
@@ -193,6 +200,8 @@ def verdict(ta: TargetAnalysis) -> str:
         parts.append("reasoning tokens dropped; ability not (yet) affected")
     elif worse:
         parts.append("ABILITY DROPPED with no identity or reasoning-token signal. Cause unclear; check per-family")
+    elif trending:
+        parts.append("ability trending down (last θ > 2 SE below baseline), not yet confirmed by CUSUM; watch the next runs")
     if lazy:
         parts.append("laziness up: effort probes are being skipped/summarized")
     if refuse:
