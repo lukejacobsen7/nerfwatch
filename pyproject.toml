@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nerfwatch"
+version = "0.1.0"
+description = "Is your model getting dumber? Local, zero-dependency drift tracker for LLM APIs and coding-agent subscriptions (Claude Code, Codex, Ollama, any OpenAI-compatible endpoint)."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Luke Jacobsen" }]
+keywords = ["llm", "drift", "benchmark", "monitoring", "claude", "codex", "openai", "cusum", "irt"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/lukejacobsen7/nerfwatch"
+
+[project.scripts]
+nerfwatch = "nerfwatch.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["nerfwatch*"]
