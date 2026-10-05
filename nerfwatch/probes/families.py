@@ -9,10 +9,18 @@ Families:
   instruct output-format constraints; L = number of simultaneous constraints
   effort   long enumerations where skipping = fail (the "it narrates instead of doing it" probe)
   refusal  benign prompts with scary words; score = answered, not refused
+  knights  knights-and-knaves puzzles with a unique solution; L = people + claim types
+  trace    simulate a short Python loop by hand; L = iterations x variables x branches
+  chars    character-level string edits (tokenizer-hostile); L = length x edits
+
+The last three exist because frontier models saturate the first six at levels 3-7.
+Each needs long, serial, exact work whose length grows with the level, so a cut in
+reasoning budget shows up as lost items instead of hiding at the ceiling.
 """
 
 from __future__ import annotations
 
+import itertools
 import random
 import re
 import subprocess
@@ -25,7 +33,8 @@ from .base import LAZY_RE, SUFFIX, Item, last_int, looks_refused, strip_fences
 Gen = Callable[[random.Random, int], Item]
 FAMILIES: dict[str, Gen] = {}
 # highest level each generator can meaningfully produce; the suite clamps to this
-FAMILY_MAX_LEVEL = {"arith": 9, "logic": 9, "listops": 9, "code": 5, "instruct": 6, "effort": 9, "refusal": 3}
+FAMILY_MAX_LEVEL = {"arith": 9, "logic": 9, "listops": 9, "code": 5, "instruct": 6, "effort": 9, "refusal": 3,
+                    "knights": 9, "trace": 9, "chars": 9}
 
 
 def family(name: str):
@@ -391,3 +400,192 @@ def gen_refusal(rng: random.Random, level: int) -> Item:
 
     # refusal items are all "level 3" difficulty for IRT purposes
     return Item("refusal", 3, prompt, q, grade, {})
+
+
+# ---------------------------------------------------------------- knights
+def _kk_claim(rng: random.Random, level: int, speaker: int, n: int, names: list[str]) -> tuple[str, Callable[[tuple[bool, ...]], bool]]:
+    others = [i for i in range(n) if i != speaker]
+    kinds = ["is", "same", "diff"]
+    if level >= 4:
+        kinds += ["both", "either"]
+    if level >= 6:
+        kinds += ["count", "count"]
+    if level >= 8:
+        kinds += ["if", "if"]
+    kind = rng.choice(kinds)
+    y, z = rng.sample(others, 2) if len(others) >= 2 else (others[0], others[0])
+    Y, Z = names[y], names[z]
+    if kind == "is":
+        knight = rng.random() < 0.5
+        return f"{Y} is a {'knight' if knight else 'knave'}", lambda a: a[y] == knight
+    if kind == "same":
+        return f"{Y} and {Z} are the same kind", lambda a: a[y] == a[z]
+    if kind == "diff":
+        return f"{Y} and {Z} are different kinds", lambda a: a[y] != a[z]
+    if kind == "both":
+        return f"{Y} and {Z} are both knaves", lambda a: not a[y] and not a[z]
+    if kind == "either":
+        return f"at least one of {Y} and {Z} is a knight", lambda a: a[y] or a[z]
+    if kind == "count":
+        grp = sorted(rng.sample(others, min(3, len(others))))
+        k = rng.randint(0, len(grp))
+        who = ", ".join(names[i] for i in grp[:-1]) + f" and {names[grp[-1]]}"
+        say = f"none of {who} are knights" if k == 0 else f"exactly {k} of {who} {'is a knight' if k == 1 else 'are knights'}"
+        return say, lambda a: sum(a[i] for i in grp) == k
+    return f"if {Y} is a knight, then {Z} is a knave", lambda a: (not a[y]) or (not a[z])
+
+
+@family("knights")
+def gen_knights(rng: random.Random, level: int) -> Item:
+    """Knights always tell the truth, knaves always lie. Claims are drawn so the hidden
+    assignment is consistent, then more are added until it is the only consistent one."""
+    n = level + 2
+    names = rng.sample(NAMES, n)
+    while True:
+        truth = tuple(rng.random() < 0.5 for _ in range(n))
+        if any(truth) and not all(truth):
+            break
+    worlds = list(itertools.product((True, False), repeat=n))
+    claims: list[tuple[int, str, Callable[[tuple[bool, ...]], bool]]] = []
+
+    def consistent_claim(sp: int) -> tuple[int, str, Callable[[tuple[bool, ...]], bool]]:
+        while True:
+            text, fn = _kk_claim(rng, level, sp, n, names)
+            if fn(truth) == truth[sp] and all((sp, text) != (s, t) for s, t, _ in claims):
+                return sp, text, fn
+
+    for sp in range(n):
+        claims.append(consistent_claim(sp))
+    alive = [w for w in worlds if all(w[sp] == fn(w) for sp, _, fn in claims)]
+    while len(alive) > 1:  # truth is always alive, so each extra claim can only shrink the set
+        c = consistent_claim(rng.randrange(n))
+        claims.append(c)
+        alive = [w for w in alive if w[c[0]] == c[2](w)]
+    rng.shuffle(claims)
+    lines = "\n".join(f'{names[sp]} says: "{text[0].upper() + text[1:]}."' for sp, text, _ in claims)
+    knights = sorted(names[i] for i in range(n) if truth[i])
+    prompt = (f"Every person here is either a knight (always tells the truth) or a knave (always lies).\n{lines}\n"
+              "Exactly one assignment is consistent. Which people are knights? "
+              "Answer with their names only, alphabetical, comma-separated, on one line.") + SUFFIX
+
+    def grade(item: Item, resp: str) -> float:
+        lines = [l for l in strip_fences(resp).splitlines() if l.strip()]
+        last = lines[-1] if lines else ""
+        got = {p for p in item.meta["people"] if re.search(rf"\b{p}\b", last)}
+        return 1.0 if got == set(item.key) else 0.0
+
+    return Item("knights", level, prompt, knights, grade, {"people": names, "n_claims": len(claims)})
+
+
+# ---------------------------------------------------------------- trace
+_TRACE_SHAPE = {  # level: (variables, loop iterations, if/else branches)
+    1: (2, 3, 0), 2: (2, 5, 0), 3: (3, 6, 0), 4: (3, 8, 1), 5: (3, 11, 1),
+    6: (4, 14, 1), 7: (4, 18, 2), 8: (4, 24, 2), 9: (4, 32, 2),
+}
+
+
+def _trace_stmt(rng: random.Random, v: str, vs: list[str], m: int) -> str:
+    u = rng.choice([x for x in vs if x != v])
+    k = rng.randint(2, 9)
+    return rng.choice([
+        f"{v} = ({v} + {u} * {k}) % {m}",
+        f"{v} = ({v} * {k} + {u}) % {m}",
+        f"{v} = ({u} - {v} + i) % {m}",
+        f"{v} = ({v} + i * {u}) % {m}",
+        f"{v} = ({u} * {v} + {k}) % {m}",
+    ])
+
+
+@family("trace")
+def gen_trace(rng: random.Random, level: int) -> Item:
+    """Hand-simulate a loop. Every update depends on the previous state, so there is no
+    shortcut: the work is (iterations x statements) small modular steps."""
+    nv, iters, n_if = _TRACE_SHAPE[level]
+    vs = list("abcd"[:nv])
+    m = rng.choice([53, 59, 61, 67, 71, 73, 79, 83, 89, 97])
+    init = [rng.randint(1, 30) for _ in vs]
+    branched = set(rng.sample(vs, n_if))
+    body = []
+    for v in vs:
+        if v in branched:
+            u = rng.choice([x for x in vs if x != v])
+            cond = rng.choice([f"{u} % 2 == 0", f"{u} > {v}", f"(i + {u}) % 3 == 0"])
+            body += [f"if {cond}:", "    " + _trace_stmt(rng, v, vs, m), "else:", "    " + _trace_stmt(rng, v, vs, m)]
+        else:
+            body.append(_trace_stmt(rng, v, vs, m))
+    head = f"{', '.join(vs)} = {', '.join(map(str, init))}\nfor i in range({iters}):\n"
+    loop = head + "\n".join("    " + l for l in body)
+    out = " + ".join(vs)
+    ns: dict = {}
+    exec(loop, ns)  # noqa: S102 - our own generated arithmetic, no names but a-d and i
+    answer = eval(out, ns)  # noqa: S307
+    prompt = f"What does this Python 3 program print?\n```python\n{loop}\nprint({out})\n```\nGive the final integer." + SUFFIX
+
+    def grade(item: Item, resp: str) -> float:
+        return 1.0 if last_int(resp) == item.key else 0.0
+
+    return Item("trace", level, prompt, answer, grade, {"iters": iters, "vars": nv, "branches": n_if})
+
+
+# ---------------------------------------------------------------- chars
+def _ord(n: int) -> str:
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+@family("chars")
+def gen_chars(rng: random.Random, level: int) -> Item:
+    """Edit a random letter string by position. Models see tokens, not characters, so
+    every positional edit forces explicit character-by-character bookkeeping."""
+    alpha = "abcdefghijklmnopqrstuvwxyz"
+    s = "".join(rng.choice(alpha) for _ in range(8 + 2 * level))
+    start = s
+    kinds = ["swap", "delete", "insert"]
+    if level >= 3:
+        kinds += ["reverse", "rotate"]
+    if level >= 5:
+        kinds += ["replace", "double"]
+    steps = []
+    for _ in range(level + 1):
+        kind = rng.choice(kinds)
+        n = len(s)
+        if kind == "swap":
+            i, j = sorted(rng.sample(range(n), 2))
+            steps.append(f"swap the {_ord(i + 1)} and {_ord(j + 1)} characters")
+            t = list(s)
+            t[i], t[j] = t[j], t[i]
+            s = "".join(t)
+        elif kind == "delete":
+            i = rng.randrange(n)
+            steps.append(f"delete the {_ord(i + 1)} character")
+            s = s[:i] + s[i + 1:]
+        elif kind == "insert":
+            i, c = rng.randrange(n + 1), rng.choice(alpha)
+            steps.append(f"insert the letter {c} so that it becomes the {_ord(i + 1)} character")
+            s = s[:i] + c + s[i:]
+        elif kind == "reverse":
+            i = rng.randrange(n - 2)
+            j = rng.randrange(i + 2, min(n, i + 9))
+            steps.append(f"reverse the characters from the {_ord(i + 1)} to the {_ord(j + 1)} inclusive")
+            s = s[:i] + s[i:j + 1][::-1] + s[j + 1:]
+        elif kind == "rotate":
+            k = rng.randint(2, max(2, n // 2))
+            steps.append(f"move the first {k} characters to the end, keeping their order")
+            s = s[k:] + s[:k]
+        elif kind == "replace":
+            a = rng.choice(sorted(set(s)))
+            b = rng.choice([c for c in alpha if c != a])
+            steps.append(f"replace every {a} with {b}")
+            s = s.replace(a, b)
+        else:
+            i = rng.randrange(n)
+            steps.append(f"duplicate the {_ord(i + 1)} character (it now appears twice in a row)")
+            s = s[:i + 1] + s[i:]
+    numbered = "\n".join(f"{i + 1}. {st}" for i, st in enumerate(steps))
+    prompt = (f"Start with the string: {start}\nApply these edits in order (positions count from 1 and refer to the string as it is at that step):\n"
+              f"{numbered}\nGive the final string.") + SUFFIX
+
+    def grade(item: Item, resp: str) -> float:
+        words = re.findall(r"[A-Za-z]+", strip_fences(resp))
+        return 1.0 if words and words[-1].lower() == item.key else 0.0
+
+    return Item("chars", level, prompt, s, grade, {"start": start, "steps": steps})

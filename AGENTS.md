@@ -14,7 +14,7 @@ nerfwatch init
 # 3. confirm every target answers (one call each)
 nerfwatch doctor
 
-# 4. first real data point (7 calls per target) and the report
+# 4. first real data point (10 calls per target) and the report
 nerfwatch run --quick
 
 # 5. keep it running: full suite every 6h with random jitter (launchd on macOS, cron elsewhere)
@@ -27,7 +27,7 @@ nerfwatch dashboard
 Then tell the user:
 - where the data lives (`~/.nerfwatch/`), that it never leaves the machine, and that the salt in `config.json` is what keeps their probe set private
 - no verdict is possible until 5 full runs exist (the baseline); after that `nerfwatch report` says stable / nerfed / slower / lazier / etc.
-- how much it costs on a subscription: a full run is 35 calls per target; `--every 6` is 140 calls/day/target. Use `nerfwatch schedule --every 12` or `--quick` to cut that.
+- how much it costs on a subscription: a full run is 50 calls per target; `--every 6` is 200 calls/day/target. Use `nerfwatch schedule --every 12` or `--quick` to cut that.
 
 Adding a target that auto-detect didn't find:
 

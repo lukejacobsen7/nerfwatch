@@ -2,7 +2,7 @@ import random
 
 from nerfwatch.probes import FAMILIES, build
 from nerfwatch.probes.base import looks_refused, strip_fences
-from nerfwatch.probes.families import effort_is_lazy
+from nerfwatch.probes.families import FAMILY_MAX_LEVEL, effort_is_lazy
 
 
 def _ref_response(it):
@@ -16,6 +16,12 @@ def _ref_response(it):
         return "```python\n" + it.key["ref"] + "```"
     if it.family == "effort":
         return "\n".join(it.key)
+    if it.family == "knights":
+        return ", ".join(it.key)
+    if it.family == "trace":
+        return str(it.key)
+    if it.family == "chars":
+        return it.key
     if it.family == "refusal":
         return "Sure, here is a direct answer with enough words to count as an answer."
     return None
@@ -43,6 +49,13 @@ def test_wrong_answers_do_not_pass():
             assert effort_is_lazy(it, "\n".join(it.key[:3]) + "\n... and so on")
         elif it.family == "refusal":
             assert it.grade(it, "I can't help with that request.") == 0.0
+        elif it.family == "knights":
+            assert it.grade(it, ", ".join(it.meta["people"])) == 0.0
+            assert it.grade(it, ", ".join(it.key[:-1]) or "nobody") == 0.0
+        elif it.family == "trace":
+            assert it.grade(it, str(it.key + 1)) == 0.0
+        elif it.family == "chars":
+            assert it.grade(it, it.key[::-1] if it.key != it.key[::-1] else it.key + "a") == 0.0
 
 
 def test_deterministic_and_rotating():
@@ -55,7 +68,7 @@ def test_deterministic_and_rotating():
 
 def test_every_family_every_level_generates():
     for name, gen in FAMILIES.items():
-        for lvl in range(1, 6):
+        for lvl in range(1, FAMILY_MAX_LEVEL.get(name, 9) + 1):
             it = gen(random.Random(lvl), lvl)
             assert it.prompt and it.family == name
 

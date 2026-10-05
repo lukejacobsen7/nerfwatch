@@ -106,6 +106,14 @@ def results_for_run(con: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]:
     return list(con.execute("SELECT * FROM results WHERE run_id=?", (run_id,)))
 
 
+def families_by_run(con: sqlite3.Connection, target: str) -> dict[int, frozenset[str]]:
+    out: dict[int, set[str]] = {}
+    q = "SELECT DISTINCT r.run_id, r.family FROM results r JOIN runs ru ON ru.id=r.run_id WHERE ru.target=?"
+    for run_id, fam in con.execute(q, (target,)):
+        out.setdefault(run_id, set()).add(fam)
+    return {k: frozenset(v) for k, v in out.items()}
+
+
 def identity_for_run(con: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]:
     return list(con.execute("SELECT * FROM identity WHERE run_id=?", (run_id,)))
 
