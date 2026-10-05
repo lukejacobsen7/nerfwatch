@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <img alt="nerfwatch" src="assets/logo-light.svg" width="520">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/lukejacobsen7/nerfwatch/main/assets/logo-dark.svg">
+    <img alt="nerfwatch" src="https://raw.githubusercontent.com/lukejacobsen7/nerfwatch/main/assets/logo-light.svg" width="520">
   </picture>
 </p>
 
@@ -9,7 +9,7 @@
   <a href="https://github.com/lukejacobsen7/nerfwatch/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/lukejacobsen7/nerfwatch/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-2BD9FF">
   <img alt="dependencies" src="https://img.shields.io/badge/dependencies-0-2BD9FF">
-  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-2BD9FF"></a>
+  <a href="https://github.com/lukejacobsen7/nerfwatch/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-2BD9FF"></a>
 </p>
 
 **Is your model getting dumber? Measure it instead of arguing about it.**
@@ -44,7 +44,7 @@
 uv tool install git+https://github.com/lukejacobsen7/nerfwatch   # or pipx / pip
 nerfwatch init        # private salt + auto-detect claude / codex / gemini / API keys
 nerfwatch doctor      # one ping per target
-nerfwatch run --quick # 7 calls per target, first data point
+nerfwatch run --quick # 10 calls per target, first data point
 nerfwatch schedule --every 6   # launchd (macOS) or cron: full suite every 6h + random jitter
 nerfwatch dashboard   # HTML, opens in your browser
 ```
@@ -58,7 +58,7 @@ Complaints that a model "got worse" conflate three different things. nerfwatch s
 | Layer | Question | Signal | Method |
 |---|---|---|---|
 | **Identity** | Did the thing behind the endpoint change? | 1-token completions with `logprobs`, fixed prompt set | Log-probability tracking ([arXiv 2512.03816](https://arxiv.org/abs/2512.03816)): mean top-5 logprob + top-token agreement. Detects new weights, quantization, inference-stack swaps. API backends only. |
-| **Capability** | Did it get dumber? | 7 probe families on a 9-level difficulty ladder; each run draws a 5-level window centred on the target's last ability estimate (adaptive testing), regenerated weekly from your private salt | Rasch (1-PL IRT) ability **θ** so runs stay comparable when items and levels change; raw accuracy; per-family accuracy. |
+| **Capability** | Did it get dumber? | 10 probe families on a 9-level difficulty ladder; each run draws a 5-level window centred on the target's last ability estimate (adaptive testing), regenerated weekly from your private salt | Rasch (1-PL IRT) ability **θ** so runs stay comparable when items and levels change; raw accuracy; per-family accuracy. |
 | **Delivery** | Did it get slower, lazier, stingier? | latency, `reasoning_tokens` (Codex, OpenAI, Claude thinking), output tokens, refusal rate on benign prompts, "lazy" rate on long enumeration tasks | Medians per run. **Reasoning tokens are the "juice" meter**: when a provider quietly lowers reasoning effort, the weights don't change but this number does. |
 
 Every metric series gets a two-sided **CUSUM** (Page 1954): baseline = first 5 runs, k = 0.5σ, h = 4σ, alarm only when the statistic stays over threshold for 2 consecutive runs. Heavy-tailed series (latency, tokens) are tracked on log scale.
@@ -79,10 +79,17 @@ The verdict combines alarms:
 | `arith` | multi-step integer arithmetic | digits × operations × multiplier size | 9 |
 | `logic` | transitive-relation puzzles with distractors, negations, middle ranks | chain length | 9 |
 | `listops` | apply k list transformations in order | k | 9 |
+| `knights` | knights-and-knaves puzzle with exactly one consistent assignment; name the knights | people (3–11) × claim types (same/different, both/either, counting, conditionals) | 9 |
+| `trace` | hand-simulate a short Python loop of modular updates; give what it prints | variables × iterations (3–32) × if/else branches | 9 |
+| `chars` | positional edits on a random letter string (swap, insert, reverse span, rotate, replace) | string length × number of edits | 9 |
 | `code` | write a Python function; hidden tests run in a subprocess | composition depth | 5 |
 | `instruct` | satisfy N simultaneous formatting constraints | N | 6 |
 | `effort` | enumerate 27–123 required lines; skipping or "..." = fail | line count | 9 |
 | `refusal` | benign questions with scary words ("how do I kill a Python process") | – | – |
+
+`knights`, `trace` and `chars` exist because frontier models score 96–99% on the other families across most of the ladder, and a probe at the ceiling can't see a drop. All three need long, serial, exact work whose length grows with the level (search over assignments, step-by-step state, character bookkeeping the tokenizer hides), so they stay unsaturated at levels 7–9 and are the most sensitive to a cut in reasoning budget. Prompts stay short; grading is an exact string/integer/set comparison.
+
+When the family mix changes (as it did when these were added), the old runs aren't comparable: `report` restarts the baseline from the first run with the current mix.
 
 Level `L` has Rasch difficulty `b = L - 3`. A fresh target starts at levels 3–7; after each run the window re-centres on `round(θ + 3)`, so a frontier model climbs to 5–9 and a small local model settles at 1–5. Accuracy therefore hovers where the test is most informative (roughly 50–80%) and **θ, not accuracy, is the number to watch**.
 
@@ -90,7 +97,7 @@ Items are generated from `sha256(salt · period · family · index)`. The salt i
 
 ## Cost on a subscription
 
-A full run is 35 calls per target (+24 tiny logprob calls on API targets). `--every 6` = 140 calls/day/target. Each `claude -p` call re-sends its system prompt, which counts toward your rate limit but not your bill. Use `--every 12`, `--quick` (7 calls), or set `items_per_family` lower in config to trim.
+A full run is 50 calls per target (+24 tiny logprob calls on API targets). `--every 6` = 200 calls/day/target. Each `claude -p` call re-sends its system prompt, which counts toward your rate limit but not your bill. Use `--every 12`, `--quick` (10 calls), or set `items_per_family` lower in config to trim.
 
 ## Commands
 
@@ -132,7 +139,7 @@ nerfwatch add --name or-kimi --backend openai-compatible --base-url https://open
 - **Identity only works where logprobs are exposed.** The CLIs don't expose them. For subscriptions you get capability + delivery, which is still enough to tell "reasoning budget cut" from "generally worse".
 - **The ladder tops out at level 9.** Frontier models with thinking on may still score >90% there; for them the delivery metrics (reasoning tokens, latency, laziness) carry most of the signal until harder families land. PRs welcome.
 - **5 runs of baseline are required** before any verdict. If the model was already nerfed when you started, your baseline is the nerfed state.
-- **Sampling noise is real.** 35 items → accuracy has ±8% sampling error per run. That is exactly why the alarms are CUSUM over runs and not a threshold on one run.
+- **Sampling noise is real.** 50 items → accuracy has ±7% sampling error per run. That is exactly why the alarms are CUSUM over runs and not a threshold on one run.
 - `claude -p` counts toward your plan's limits.
 
 ## Prior art

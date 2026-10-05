@@ -261,7 +261,7 @@ def main(argv: list[str] | None = None) -> None:
 
     s = sub.add_parser("run", help="run the probe suite now")
     s.add_argument("--target", "-t", action="append", help="only these targets (repeatable)")
-    s.add_argument("--quick", action="store_true", help="1 item per family (7 calls) instead of the full suite")
+    s.add_argument("--quick", action="store_true", help="1 item per family (10 calls) instead of the full suite")
     s.add_argument("--parallel", type=int, default=3)
     s.add_argument("--no-report", action="store_true")
     s.set_defaults(fn=cmd_run)

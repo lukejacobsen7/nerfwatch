@@ -126,15 +126,28 @@ def _ident_mode(con: sqlite3.Connection, runs: list[sqlite3.Row], baseline_n: in
     return {k: c.most_common(1)[0][0] for k, c in votes.items()}
 
 
+def current_suite(runs: list[sqlite3.Row], fams: dict[int, frozenset[str]]) -> list[sqlite3.Row]:
+    """Runs since the family mix last changed. A new family moves θ and accuracy on its own,
+    so runs from an older suite would look like drift; the baseline restarts instead."""
+    latest = next((fams[r["id"]] for r in reversed(runs) if fams.get(r["id"])), None)
+    start = 0
+    for i, r in enumerate(runs):
+        f = fams.get(r["id"])
+        if f and f != latest:
+            start = i + 1
+    return runs[start:]
+
+
 def analyze(target: str, cfg: dict[str, Any]) -> TargetAnalysis:
     baseline_n = int(cfg.get("baseline_runs", 5))
     k, h = float(cfg.get("cusum_k", 0.5)), float(cfg.get("cusum_h", 4.0))
     with db.connect() as con:
         runs = [r for r in db.runs_for(con, target) if not r["quick"]] or db.runs_for(con, target)
+        runs = current_suite(runs, db.families_by_run(con, target))
         mode = _ident_mode(con, runs, baseline_n)
         rms = [_run_metrics(con, r, mode) for r in runs]
     ta = TargetAnalysis(target=target, runs=rms, baseline_n=baseline_n)
-    n_items = rms[-1].n if rms else 35
+    n_items = rms[-1].n if rms else 50
     for key, label, better, fmt in METRIC_DEFS:
         vals = [getattr(m, key) for m in rms]
         if all(v is None for v in vals):

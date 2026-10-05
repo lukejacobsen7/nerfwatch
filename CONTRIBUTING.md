@@ -30,6 +30,14 @@ python -m pytest tests/ -q
 
 Subclass `Backend` in `nerfwatch/backends/`, implement `complete(prompt) -> Response`, optionally `logprob_probe(prompt) -> LogprobProbe`, and register it in `backends/__init__.py`. Include a docstring with the exact headless command and the JSON shape you parsed.
 
+## Releasing
+
+1. Bump `__version__` in `nerfwatch/__init__.py` and move the `Unreleased` entries in `CHANGELOG.md` under that version.
+2. Check locally: `python -m build && python -m twine check --strict dist/*`.
+3. Merge, then tag `vX.Y.Z` on `main` and push the tag. `.github/workflows/release.yml` refuses a tag that doesn't match `__version__`, then publishes via PyPI trusted publishing.
+
+One-time setup (maintainer): on pypi.org add a trusted publisher for `lukejacobsen7/nerfwatch`, workflow `release.yml`, environment `pypi`, and create a `pypi` environment in the repo settings (optionally with required reviewers).
+
 ## Reporting a nerf
 
 If nerfwatch caught something real, open a discussion with `nerfwatch report --json` output (it contains no prompts). That's the most useful contribution there is.

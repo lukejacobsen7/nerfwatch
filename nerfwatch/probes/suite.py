@@ -18,7 +18,7 @@ from .base import Item
 from .base import MAX_LEVEL
 from .families import FAMILIES, FAMILY_MAX_LEVEL
 
-ORDER = ["arith", "logic", "listops", "code", "instruct", "effort", "refusal"]
+ORDER = ["arith", "logic", "listops", "knights", "trace", "chars", "code", "instruct", "effort", "refusal"]
 
 
 def period_key(rotation: str, when: dt.date | None = None) -> str:
